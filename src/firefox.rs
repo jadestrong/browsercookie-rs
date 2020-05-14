@@ -31,27 +31,39 @@ fn get_master_profile_path() -> PathBuf {
     path
 }
 
-fn get_default_profile_path(master_profile: &Path) -> Result<PathBuf, Box<dyn Error>> {
+fn get_default_profile_conf(master_profile: &Path) -> Result<Ini, Box<dyn Error>> {
     let profiles_conf: Ini;
-    let mut default_profile_path = PathBuf::from(master_profile);
-    default_profile_path.pop();
+    // let mut default_profile_path = PathBuf::from(master_profile);
+    // default_profile_path.pop();
 
     match Ini::load_from_file(&master_profile) {
         Err(_) => return Err(Box::new(BrowsercookieError::InvalidProfile(String::from("Unable to parse firefox ini profile")))),
         Ok(p) => profiles_conf = p
     }
-
-    for (_, section) in &profiles_conf {
-        match section.get("Path") {
-            Some(path) => {
-                default_profile_path.push(path);
-                break
-            }
-            None => {}
-        }
-    }
-    Ok(default_profile_path)
+    Ok(profiles_conf)
 }
+
+// fn get_default_profile_path(master_profile: &Path) -> Result<PathBuf, Box<dyn Error>> {
+//     let profiles_conf: Ini;
+//     let mut default_profile_path = PathBuf::from(master_profile);
+//     default_profile_path.pop();
+
+//     match Ini::load_from_file(&master_profile) {
+//         Err(_) => return Err(Box::new(BrowsercookieError::InvalidProfile(String::from("Unable to parse firefox ini profile")))),
+//         Ok(p) => profiles_conf = p
+//     }
+
+//     for (_, section) in &profiles_conf {
+//         match section.get("Path") {
+//             Some(path) => {
+//                 default_profile_path.push(path);
+//                 break
+//             }
+//             None => {}
+//         }
+//     }
+//     Ok(default_profile_path)
+// }
 
 // fn load_from_recovery(recovery_path: &Path, bcj: &mut Box<CookieJar>, domain_regex: &Regex) -> Result<bool, Box<dyn Error>> {
 //     let recovery_file = File::open(recovery_path)?;
@@ -111,26 +123,52 @@ fn load_from_sqlite(cookie_path: &Path, bcj: &mut Box<CookieJar>, domain_regex: 
     }
 }
 
-pub(crate) fn load(bcj: &mut Box<CookieJar>, domain_regex: &Regex) -> Result<(), Box<dyn Error>>  {
-    // Returns a CookieJar on heap if following steps go right
-    //
-    // 1. Get default profile path for firefox from master ini profiles config.
-    // 2. Load cookies from recovery json (sessionstore-backups/recovery.jsonlz4)
-    //    of the default profile.
+// pub(crate) fn load(bcj: &mut Box<CookieJar>, domain_regex: &Regex) -> Result<(), Box<dyn Error>>  {
+//     // Returns a CookieJar on heap if following steps go right
+//     //
+//     // 1. Get default profile path for firefox from master ini profiles config.
+//     // 2. Load cookies from recovery json (sessionstore-backups/recovery.jsonlz4)
+//     //    of the default profile.
+//     let master_profile_path = get_master_profile_path();
+//     if !master_profile_path.exists() {
+//         return Err(Box::new(BrowsercookieError::ProfileMissing(String::from("Firefox profile path doesn't exist"))))
+//     }
+
+//     let mut profile_path = get_default_profile_path(&master_profile_path)?;
+//     profile_path.push("cookies.sqlite");
+//     println!("path {:?}", profile_path);
+//     if !profile_path.exists() {
+//         return Err(Box::new(BrowsercookieError::InvalidCookieStore(String::from("Firefox invalid cookie store"))))
+//     }
+//     load_from_sqlite(&profile_path, bcj, domain_regex)?;
+
+//     Ok(())
+// }
+
+pub(crate) fn load(bcj: &mut Box<CookieJar>, domain_regex: &Regex) -> Result<(), Box<dyn Error>> {
     let master_profile_path = get_master_profile_path();
     if !master_profile_path.exists() {
         return Err(Box::new(BrowsercookieError::ProfileMissing(String::from("Firefox profile path doesn't exist"))))
     }
-
-    let mut profile_path = get_default_profile_path(&master_profile_path)?;
-    profile_path.push("cookies.sqlite");
-    if !profile_path.exists() {
-        return Err(Box::new(BrowsercookieError::InvalidCookieStore(String::from("Firefox invalid cookie store"))))
+    let profiles_conf = get_default_profile_conf(&master_profile_path)?;
+    for (_, section) in &profiles_conf {
+        match section.get("Path") {
+            Some(path) => {
+                let mut default_profile_path = PathBuf::from(&master_profile_path);
+                default_profile_path.pop();
+                default_profile_path.push(path);
+                default_profile_path.push("cookies.sqlite");
+                if !default_profile_path.exists() {
+                    continue;
+                }
+                load_from_sqlite(&default_profile_path, bcj, domain_regex)?;
+            }
+            None => {}
+        }
     }
-    load_from_sqlite(&profile_path, bcj, domain_regex)?;
-
     Ok(())
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -162,15 +200,15 @@ mod tests {
     //     assert_eq!(c.domain(), Some("addons.mozilla.org"));
     // }
 
-    #[test]
-    fn test_master_profile() {
-        // let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        // path.push("tests/resources/profiles.ini");
+    // #[test]
+    // fn test_master_profile() {
+    //     // let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    //     // path.push("tests/resources/profiles.ini");
 
-        let path = get_master_profile_path();
-        let default_profile_path = get_default_profile_path(&path).expect("Failed to parse master firefox profile");
+    //     let path = get_master_profile_path();
+    //     let default_profile_path = get_default_profile_path(&path).expect("Failed to parse master firefox profile");
 
-        assert!(default_profile_path.exists());
-        // assert!(default_profile_path.ends_with(PathBuf::from("Profiles/1qbuu7ux.default")));
-    }
+    //     assert!(default_profile_path.exists());
+    //     // assert!(default_profile_path.ends_with(PathBuf::from("Profiles/1qbuu7ux.default")));
+    // }
 }
