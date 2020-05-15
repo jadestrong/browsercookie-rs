@@ -6,7 +6,7 @@ use browsercookie::{Browser, Browsercookies};
 extern crate clap;
 
 fn curl_output(bc: &Browsercookies, domain_regex: &Regex) {
-    print!("Cookie: {}", bc.to_header(domain_regex).unwrap());
+    print!("{}", bc.to_header(domain_regex).unwrap());
 }
 
 fn python_output(bc: &Browsercookies, domain_regex: &Regex) {
