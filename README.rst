@@ -4,6 +4,8 @@ browsercookie-rs
 A rust crate useful for extracting cookies from browsers. Inspired from
 `browsercookie <https://pypi.org/project/browsercookie/>`_ python library.
 
+This is a repo forked from *tunnelshade/browsercookie-rs* , and I rewrite some logic to fix some problems.
+
 Library
 *******
 
@@ -43,9 +45,10 @@ from your favourite shell for crudely using frontend apis for simple tooling.
 Install
 =======
 
+Clone this repo, and run below command:
 .. code-block:: bash
 
-        cargo install -f browsercookie-rs
+        cargo install --path .
 
 
 Feature Matrix
